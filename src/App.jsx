@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  AlertTriangle, ArrowRight, Braces, Check, ChevronDown, ChevronUp, CircleAlert,
-  Clock3, Eye, FileSearch, Fingerprint, Gauge, Globe2, History, Info, KeyRound,
+  Activity, AlertTriangle, ArrowRight, Braces, Check, ChevronDown, ChevronUp, CircleAlert, Copy,
+  Clock3, Download, Eye, FileSearch, Fingerprint, Gauge, Globe2, History, Info, KeyRound,
   Link2, LockKeyhole, Menu, Network, Search, Shield, ShieldCheck, ShieldQuestion,
   Sparkles, Trash2, X, Zap
 } from 'lucide-react'
-import { analyzeUrl, examples } from './analyzer'
+import { analyzeUrl, examples, RULE_COUNT } from './analyzer'
 
 const HISTORY_KEY = 'linkguard-history-v1'
 
@@ -77,7 +77,7 @@ function Finding({ item, index }) {
       <span className="min-w-0 flex-1 font-semibold text-white">{item.title}</span><SeverityBadge severity={item.severity}/>{open ? <ChevronUp size={17} className="text-slate-500"/> : <ChevronDown size={17} className="text-slate-500"/>}
     </button>
     {open && <div className="grid gap-5 border-t border-line px-5 py-5 text-sm sm:grid-cols-3">
-      <div><p className="mb-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">What was detected</p><p className="leading-6 text-slate-300">{item.detected}</p></div>
+      <div><p className="mb-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">What was detected</p><p className="leading-6 text-slate-300">{item.detected}</p>{item.evidence && <code className="mt-3 block break-all rounded-md bg-black/20 p-2 text-[11px] leading-5 text-cyan-200/70">{item.evidence}</code>}</div>
       <div><p className="mb-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">Why it can matter</p><p className="leading-6 text-slate-300">{item.why}</p></div>
       <div><p className="mb-1.5 text-xs font-bold uppercase tracking-wider text-cyan-500">Safety recommendation</p><p className="leading-6 text-slate-300">{item.recommendation}</p></div>
     </div>}
@@ -94,15 +94,29 @@ function Breakdown({ data }) {
     <div className="grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-2">
       {fields.map(([label, value, Icon]) => <div key={label} className="min-w-0 bg-ink/70 p-4"><div className="mb-1.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-500"><Icon size={13}/>{label}</div><div className="break-all font-mono text-xs leading-5 text-slate-200">{value}</div></div>)}
       <div className="min-w-0 bg-ink/70 p-4 sm:col-span-2"><div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">Query parameters · {data.queryParameters.length}</div>{data.queryParameters.length ? <div className="flex flex-wrap gap-2">{data.queryParameters.map(({key,value}, i) => <span key={`${key}-${i}`} className="max-w-full break-all rounded-md border border-line bg-white/[.03] px-2.5 py-1.5 font-mono text-xs text-slate-300"><b className="text-cyan-400">{key}</b>={value}</span>)}</div> : <span className="font-mono text-xs text-slate-300">None</span>}</div>
+      <div className="min-w-0 bg-ink/70 p-4 sm:col-span-2"><div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">Decoded inspection preview</div><div className="break-all font-mono text-xs leading-5 text-slate-300">{data.decodedPreview || 'No encoded layers detected'}</div></div>
     </div>
   </div>
 }
 
 function Results({ result, resultRef }) {
+  const [copied, setCopied] = useState(false)
   const t = levelTone(result.score)
+  const copyReport = async () => {
+    const text = ['LinkGuard URL Risk Assessment', `Report: ${result.reportId || result.id}`, `URL: ${result.normalized}`, `Score: ${result.score}/100 — ${result.level}`, `Indicators: ${result.findings.length}`, ...result.findings.map(item => `- [${item.severity}] ${item.title}: ${item.evidence || item.detected}`), '', 'URL-characteristic assessment only; not a malicious/safe verdict.'].join('\n')
+    try { await navigator.clipboard.writeText(text) } catch {
+      const area = document.createElement('textarea'); area.value = text; area.style.position = 'fixed'; area.style.opacity = '0'; document.body.appendChild(area); area.select(); document.execCommand('copy'); area.remove()
+    }
+    setCopied(true); setTimeout(() => setCopied(false), 1800)
+  }
+  const downloadReport = () => {
+    const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' })
+    const anchor = document.createElement('a'); anchor.href = URL.createObjectURL(blob); anchor.download = `${(result.reportId || 'linkguard').toLowerCase()}-assessment.json`; anchor.click(); URL.revokeObjectURL(anchor.href)
+  }
   return <section ref={resultRef} className="scroll-mt-24 border-t border-white/[.06] bg-[#081422] py-20">
     <div className="mx-auto max-w-7xl px-5 lg:px-8">
-      <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end"><div><span className="mb-3 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[.2em] text-cyan-400"><Gauge size={15}/>Assessment complete</span><h2 className="text-2xl font-bold text-white sm:text-3xl">URL Risk Assessment</h2></div><div className="max-w-xl rounded-lg border border-cyan-400/10 bg-cyan-400/5 px-4 py-3 text-xs leading-5 text-slate-400"><Info size={14} className="mr-2 inline text-cyan-400"/>This score is based on URL characteristics and does not guarantee that a website is safe or malicious.</div></div>
+      <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end"><div><span className="mb-3 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[.2em] text-cyan-400"><Gauge size={15}/>Assessment complete · Engine v{result.analyzerVersion || '1.0'}</span><h2 className="text-2xl font-bold text-white sm:text-3xl">URL Risk Assessment</h2><p className="mt-2 font-mono text-[11px] text-slate-600">REPORT {result.reportId || result.id}</p></div><div className="flex max-w-xl flex-col gap-3"><div className="rounded-lg border border-cyan-400/10 bg-cyan-400/5 px-4 py-3 text-xs leading-5 text-slate-400"><Info size={14} className="mr-2 inline text-cyan-400"/>This score is based on URL characteristics and does not guarantee that a website is safe or malicious.</div><div className="flex gap-2 md:justify-end"><button onClick={copyReport} className="flex items-center gap-2 rounded-lg border border-line bg-white/[.03] px-3 py-2 text-xs font-semibold text-slate-300 hover:border-cyan-400/30 hover:text-cyan-300">{copied ? <Check size={14}/> : <Copy size={14}/>} {copied ? 'Copied' : 'Copy summary'}</button><button onClick={downloadReport} className="flex items-center gap-2 rounded-lg border border-line bg-white/[.03] px-3 py-2 text-xs font-semibold text-slate-300 hover:border-cyan-400/30 hover:text-cyan-300"><Download size={14}/>JSON report</button></div></div></div>
+      {result.wasDefanged && <div className="mb-6 flex items-start gap-3 rounded-xl border border-blue-400/20 bg-blue-400/[.06] p-4 text-sm text-blue-100"><Braces className="mt-0.5 shrink-0 text-blue-300" size={18}/><div><b>Defanged indicator recognized.</b><p className="mt-1 text-xs leading-5 text-slate-400">LinkGuard safely normalized <code>hxxp(s)</code> and <code>[.]</code> notation for parsing. It did not open the destination.</p></div></div>}
       <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
         <div className="glass rounded-2xl border border-line p-6 text-center shadow-glow">
           <GaugeChart score={result.score}/><div className={cx('mx-auto mt-2 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold', t.soft, t.text)}><span className={cx('h-2 w-2 rounded-full',t.bg)}/>{result.level}</div>
@@ -113,6 +127,8 @@ function Results({ result, resultRef }) {
           <div className="col-span-2 rounded-xl border border-line bg-ink/45 p-5 sm:col-span-3"><div className="mb-3 flex items-center justify-between text-xs"><span className="font-semibold text-slate-300">Indicator scale</span><span className="text-slate-500">0—100</span></div><div className="flex h-2 overflow-hidden rounded-full"><div className="w-1/4 bg-emerald-400"/><div className="w-1/4 bg-amber-400"/><div className="w-1/4 bg-orange-400"/><div className="w-1/4 bg-red-400"/></div><div className="mt-2 grid grid-cols-4 text-[9px] text-slate-600"><span>Low</span><span>Some</span><span>Suspicious</span><span className="text-right">High</span></div></div>
         </div>
       </div>
+      {(result.signals || []).length > 0 && <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{result.signals.map(signal => <div key={signal.label} className="flex items-center gap-3 rounded-xl border border-line bg-panel/60 p-4"><span className={cx('grid h-8 w-8 shrink-0 place-items-center rounded-full', signal.state === 'positive' ? 'bg-emerald-400/10 text-emerald-300' : 'bg-amber-400/10 text-amber-300')}>{signal.state === 'positive' ? <Check size={15}/> : <AlertTriangle size={15}/>}</span><div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-600">{signal.label}</p><p className="mt-1 text-xs font-semibold text-slate-200">{signal.value}</p></div></div>)}</div>}
+      {result.findings.length > 0 && <div className="mt-8 rounded-2xl border border-line bg-panel/50 p-5 sm:p-6"><div className="mb-5 flex items-center justify-between"><div><h3 className="flex items-center gap-2 font-bold text-white"><Activity size={18} className="text-cyan-400"/>Score contribution</h3><p className="mt-1 text-xs text-slate-500">Every point is traceable to a detected rule</p></div><span className="font-mono text-xs text-slate-500">Raw {result.rawScore || result.score} · Capped {result.score}</span></div><div className="space-y-3">{result.findings.map(item => <div key={item.key} className="grid items-center gap-2 sm:grid-cols-[190px_1fr_46px]"><span className="truncate text-xs font-medium text-slate-300">{item.title}</span><div className="h-1.5 overflow-hidden rounded-full bg-ink"><div className={cx('h-full rounded-full', item.severity === 'High' ? 'bg-red-400' : item.severity === 'Medium' ? 'bg-amber-400' : 'bg-cyan-400')} style={{width:`${Math.min(100, item.weight / 24 * 100)}%`}}/></div><span className="text-right font-mono text-xs text-slate-500">+{item.weight}</span></div>)}</div></div>}
       <div className="mt-12 grid gap-8 lg:grid-cols-[1.1fr_.9fr]">
         <div><div className="mb-5 flex items-end justify-between"><div><h3 className="text-xl font-bold text-white">Detected Indicators</h3><p className="mt-1 text-sm text-slate-500">Explainable signals found in the URL string</p></div><span className="rounded-full bg-white/5 px-3 py-1 text-xs text-slate-400">{result.findings.length}</span></div>
           <div className="space-y-3">{result.findings.length ? result.findings.map((item, i) => <Finding key={item.key} item={item} index={i}/>) : <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-8 text-center"><ShieldCheck className="mx-auto mb-3 text-emerald-300" size={34}/><h4 className="font-bold text-white">No rule-based indicators detected</h4><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-400">This does not prove the destination is safe. Continue to verify the sender and domain before opening unfamiliar links.</p></div>}</div>
@@ -145,7 +161,6 @@ function App() {
   const [history, setHistory] = useState(() => { try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || [] } catch { return [] } })
   const [drawer, setDrawer] = useState(false)
   const resultRef = useRef(null)
-  const totalRules = 15
   useEffect(() => { try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)) } catch { /* storage can be unavailable in private browsing */ } }, [history])
   const runAnalysis = (value = input, save = true) => {
     try {
@@ -168,13 +183,13 @@ function App() {
           <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-slate-400 sm:text-lg">Inspect a URL for explainable risk indicators—without opening the website or sending the link anywhere.</p>
           <form onSubmit={e => { e.preventDefault(); runAnalysis() }} className="mx-auto mt-10 max-w-3xl text-left">
             <div className={cx('flex flex-col rounded-2xl border bg-panel/80 p-2 shadow-2xl shadow-black/30 backdrop-blur-xl transition sm:flex-row', error ? 'border-red-400/50' : 'border-slate-600/70 focus-within:border-cyan-400/60 focus-within:shadow-glow')}>
-              <div className="flex min-w-0 flex-1 items-center"><Link2 className="ml-4 shrink-0 text-slate-500" size={20}/><input value={input} onChange={e => {setInput(e.target.value); setError('')}} aria-label="Paste a URL" autoComplete="off" spellCheck="false" placeholder="Paste a URL — example.com/path" className="w-full bg-transparent px-4 py-4 text-sm text-white placeholder:text-slate-600 focus:outline-none sm:text-base" /></div>
+              <div className="flex min-w-0 flex-1 items-center"><Link2 className="ml-4 shrink-0 text-slate-500" size={20}/><input value={input} onChange={e => {setInput(e.target.value); setError('')}} aria-label="Paste a URL" autoComplete="off" spellCheck="false" placeholder="URL or defanged IOC — hxxps://example[.]com" className="w-full bg-transparent px-4 py-4 text-sm text-white placeholder:text-slate-600 focus:outline-none sm:text-base" /></div>
               <button className="flex items-center justify-center gap-2 rounded-xl bg-cyan-400 px-7 py-4 text-sm font-bold text-slate-950 transition hover:bg-cyan-300 active:scale-[.98]">Analyze Link<ArrowRight size={17}/></button>
             </div>
             {error && <p className="mt-3 flex items-center gap-2 px-2 text-sm text-red-300"><CircleAlert size={15}/>{error}</p>}
             <div className="mt-4 flex flex-col items-center justify-between gap-3 px-2 sm:flex-row"><span className="flex items-center gap-2 text-xs text-slate-500"><LockKeyhole size={14} className="text-emerald-400"/>URL analysis happens locally in your browser.</span><button type="button" onClick={() => {setInput(examples[2].value); runAnalysis(examples[2].value)}} className="flex items-center gap-2 text-xs font-semibold text-cyan-400 transition hover:text-cyan-300"><Sparkles size={14}/>Try Example</button></div>
           </form>
-          <div className="mx-auto mt-12 grid max-w-2xl grid-cols-3 divide-x divide-line text-center"><div><p className="text-xl font-bold text-white">{totalRules}</p><p className="mt-1 text-[10px] uppercase tracking-widest text-slate-600">Explainable rules</p></div><div><p className="text-xl font-bold text-white">0</p><p className="mt-1 text-[10px] uppercase tracking-widest text-slate-600">External requests</p></div><div><p className="text-xl font-bold text-white">100%</p><p className="mt-1 text-[10px] uppercase tracking-widest text-slate-600">Client-side</p></div></div>
+          <div className="mx-auto mt-12 grid max-w-2xl grid-cols-3 divide-x divide-line text-center"><div><p className="text-xl font-bold text-white">{RULE_COUNT}</p><p className="mt-1 text-[10px] uppercase tracking-widest text-slate-600">Explainable rules</p></div><div><p className="text-xl font-bold text-white">0</p><p className="mt-1 text-[10px] uppercase tracking-widest text-slate-600">External requests</p></div><div><p className="text-xl font-bold text-white">100%</p><p className="mt-1 text-[10px] uppercase tracking-widest text-slate-600">Client-side</p></div></div>
         </div>
       </section>
 
@@ -187,7 +202,7 @@ function App() {
 
       <section id="examples" className="border-y border-white/[.06] bg-[#081422] py-24">
         <div className="mx-auto max-w-7xl px-5 lg:px-8"><div className="mb-10 flex flex-col justify-between gap-4 md:flex-row md:items-end"><div><span className="text-xs font-bold uppercase tracking-[.22em] text-cyan-400">Learning lab</span><h2 className="mt-3 text-3xl font-bold text-white">Synthetic educational examples</h2><p className="mt-3 max-w-xl text-sm leading-6 text-slate-500">These reserved or illustrative addresses demonstrate how URL characteristics affect an assessment.</p></div><span className="flex items-center gap-2 text-xs text-slate-500"><CircleAlert size={14}/>Examples are not real threat claims</span></div>
-          <div className="grid gap-3">{examples.map((ex,i) => <button key={ex.label} onClick={() => {setInput(ex.value); runAnalysis(ex.value)}} className="group flex flex-col items-start gap-3 rounded-xl border border-line bg-panel/70 p-4 text-left transition hover:border-cyan-400/30 hover:bg-cyan-400/[.03] sm:flex-row sm:items-center"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-line bg-ink text-xs font-bold text-slate-500">0{i+1}</span><span className="w-40 shrink-0 text-sm font-semibold text-slate-200">{ex.label}</span><code className="min-w-0 flex-1 break-all text-xs leading-5 text-slate-500 group-hover:text-slate-400">{ex.value}</code><span className="flex items-center gap-1 text-xs font-semibold text-cyan-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100">Analyze<ArrowRight size={13}/></span></button>)}</div>
+          <div className="grid gap-3">{examples.map((ex,i) => <button key={ex.label} onClick={() => {setInput(ex.value); runAnalysis(ex.value)}} className="group flex flex-col items-start gap-3 rounded-xl border border-line bg-panel/70 p-4 text-left transition hover:border-cyan-400/30 hover:bg-cyan-400/[.03] sm:flex-row sm:items-center"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-line bg-ink text-xs font-bold text-slate-500">0{i+1}</span><span className="w-44 shrink-0"><span className="block text-sm font-semibold text-slate-200">{ex.label}</span><span className="mt-1 block text-[10px] font-bold uppercase tracking-wider text-cyan-500/70">{ex.type}</span></span><code className="min-w-0 flex-1 break-all text-xs leading-5 text-slate-500 group-hover:text-slate-400">{ex.value}</code><span className="flex items-center gap-1 text-xs font-semibold text-cyan-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100">Analyze<ArrowRight size={13}/></span></button>)}</div>
         </div>
       </section>
 

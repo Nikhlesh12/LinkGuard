@@ -11,10 +11,15 @@ Links can be difficult to read, especially when they contain many subdomains, en
 - Local analysis of HTTP and HTTPS URL strings
 - Explainable risk score from 0–100
 - Four carefully worded risk-indicator classifications
-- 15 weighted checks, with no pretend machine-learning claims
+- 20 weighted checks, with no pretend machine-learning claims
+- SOC-friendly defanged IOC input support (`hxxps://` and `[.]`)
+- Multi-layer percent-decoding and embedded redirect inspection
+- Executable/double-extension, brand-context, and high-entropy label checks
+- Exact evidence and per-rule score contribution for every finding
+- Stable local report fingerprint plus copy-summary and JSON export actions
 - Expandable findings that explain what was found, why it matters, and what to do
 - Visual breakdown of protocol, hostname, subdomain, domain, port, path, query parameters, and fragment
-- Synthetic examples for normal, long, IP-based, multi-subdomain, and encoded URLs
+- Synthetic examples covering normal, long, IP-based, multi-subdomain, encoded, defanged IOC, redirect, download, and impersonation patterns
 - Latest 10 assessments saved in `localStorage`
 - View, delete, and clear-history controls
 - Responsive interface and accessible labels/focus states
@@ -76,7 +81,7 @@ The hostname is further presented as a domain and subdomain labels for education
 
 ## Risk-scoring explanation
 
-LinkGuard evaluates 15 deterministic rules:
+LinkGuard evaluates 20 deterministic rules. Thresholds and weights are intentionally visible so an interviewer or reviewer can audit every result:
 
 | Indicator | Weight |
 | --- | ---: |
@@ -84,7 +89,7 @@ LinkGuard evaluates 15 deterministic rules:
 | Unusually long URL | 8 |
 | Excessive subdomains | 12 |
 | Raw IP address hostname | 18 |
-| Username/password-style syntax | 24 |
+| Username/password-style syntax | 28 |
 | Punycode hostname | 16 |
 | Unusually long hostname | 8 |
 | Many special characters | 10 |
@@ -92,9 +97,14 @@ LinkGuard evaluates 15 deterministic rules:
 | Percent-encoded characters | 8 |
 | Suspicious keyword combination | 14 |
 | Unusual network port | 13 |
-| Nested URL pattern | 20 |
+| Nested URL / redirect pattern | 26 |
 | Very long query string | 8 |
 | Known link-shortener hostname | 16 |
+| Potentially executable file | 28 |
+| Misleading double extension | 32 |
+| Brand name outside official domain | 15 |
+| Random-looking hostname label | 9 |
+| Excessive query parameters | 7 |
 
 Weights are added and capped at 100. The result is classified as:
 
