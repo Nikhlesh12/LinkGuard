@@ -27,7 +27,9 @@ const rules = {
   doubleExtension: ['Misleading Double Extension', 'High', 32, 'The filename uses a document or image extension before an executable extension.', 'A double extension can make a program look like a harmless document when extensions are hidden.', 'Do not run the file; confirm its real type and source using trusted security controls.'],
   brandContext: ['Brand Name Outside Official Domain', 'Medium', 15, 'A recognizable service name appears, but the registered domain does not match that service.', 'Brand words in subdomains or paths can create false familiarity. This can also occur legitimately in articles or integrations.', 'Navigate to the brand using its known official address and verify the request there.'],
   randomLabel: ['Random-Looking Host Label', 'Low', 9, 'A long hostname label has high character randomness.', 'Random-looking labels are used legitimately, but can reduce readability and occur in disposable infrastructure.', 'Treat the signal as context and verify the registered domain independently.'],
-  manyParams: ['Excessive Query Parameters', 'Low', 7, 'The URL contains many separate query parameters.', 'Many parameters can make redirects and important values difficult to audit visually.', 'Inspect parameter names, especially values named redirect, next, target, or destination.']
+  manyParams: ['Excessive Query Parameters', 'Low', 7, 'The URL contains many separate query parameters.', 'Many parameters can make redirects and important values difficult to audit visually.', 'Inspect parameter names, especially values named redirect, next, target, or destination.'],
+  manyDigits: ['High Number of Digits', 'Low', 7, 'The hostname and path contain an unusually high number of digits.', 'Dense numeric strings can reduce readability and sometimes appear in generated or disposable links.', 'Use this as supporting context and verify the registered domain.'],
+  misleadingPath: ['Misleading Path Terminology', 'Medium', 12, 'The path combines multiple account or security-related terms.', 'A trustworthy-looking path does not change who controls the registered domain.', 'Focus on the registered domain rather than words placed after the first slash.']
 }
 
 export const RULE_COUNT = Object.keys(rules).length
@@ -115,6 +117,8 @@ export function analyzeUrl(rawInput) {
   })
   const randomLabel = hostname.split('.').find(label => label.length >= 16 && entropy(label) >= 3.6 && /[a-z]/.test(label) && /\d/.test(label))
   const redirectKeys = [...url.searchParams.keys()].filter(key => /^(url|uri|redirect|redirect_url|redirect_uri|next|target|dest|destination|continue|return|returnto|return_url)$/i.test(key))
+  const digitCount = ((hostname + url.pathname).match(/\d/g) || []).length
+  const pathTerms = [...new Set((url.pathname.toLowerCase().match(/login|verify|secure|account|signin|password|payment|wallet/g) || []))]
 
   add(url.protocol === 'http:', 'http', `Protocol: ${url.protocol.replace(':', '').toUpperCase()}`)
   add(normalized.length > 120, 'long', `Length: ${normalized.length} characters (threshold: 120)`)
@@ -136,6 +140,8 @@ export function analyzeUrl(rawInput) {
   add(Boolean(brandMatch), 'brandContext', brandMatch ? `Brand term: ${brandMatch[0]} · Registered domain: ${domain}` : '')
   add(Boolean(randomLabel), 'randomLabel', randomLabel ? `Label: ${randomLabel} · Entropy: ${entropy(randomLabel).toFixed(2)} bits/character` : '')
   add([...url.searchParams].length >= 8, 'manyParams', `${[...url.searchParams].length} query parameters (threshold: 8)`)
+  add(digitCount >= 8, 'manyDigits', `${digitCount} digits in hostname and path (threshold: 8)`)
+  add(pathTerms.length >= 2, 'misleadingPath', `Path terms: ${pathTerms.join(', ')} · Registered domain: ${domain}`)
 
   const scoredHits = doubleExtension ? hits.filter(item => item.key !== 'riskyFile') : hits
   const rawScore = scoredHits.reduce((sum, item) => sum + item.weight, 0)

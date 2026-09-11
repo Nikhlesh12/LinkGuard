@@ -1,204 +1,179 @@
-# LinkGuard – Suspicious URL Risk Analyzer
+# LinkGuard — Scam & Phishing Signal Analyzer
 
-LinkGuard is a privacy-friendly, client-side cybersecurity portfolio project that helps users inspect a URL before they trust it. It creates a **URL Risk Assessment** from visible URL characteristics and explains each detected indicator. It does not visit the destination and does not claim to determine whether a site is malicious.
+LinkGuard is a privacy-focused digital trust tool that helps users inspect suspicious links, QR codes, and messages before they act. It uses transparent browser-side rules to highlight risk signals, explain why they matter, and suggest safer next steps.
 
-## Purpose
+> **LinkGuard provides explainable risk indicators and educational guidance. It does not guarantee whether a link, QR code or message is safe or malicious.**
 
-Links can be difficult to read, especially when they contain many subdomains, encoded values, nested destinations, or misleading syntax. LinkGuard turns a URL into understandable components and highlights patterns that deserve additional verification. It is designed to demonstrate practical, defensive cybersecurity thinking for a fresher cybersecurity candidate.
+## Project Overview
+
+This portfolio project demonstrates defensive cybersecurity thinking at a fresher/intermediate level. Instead of presenting an unsupported “malicious” verdict, LinkGuard separates evidence from conclusions. Every point in an assessment comes from a visible rule and every finding uses cautious language.
+
+The application is a static React site. It has no authentication, database, backend, threat feed, paid API, or external AI service.
+
+## Problem Statement
+
+Scam attempts can arrive as links, QR images, SMS, WhatsApp messages, or email. Users often see urgency and familiar brand language before they inspect the actual requested action. LinkGuard creates one investigation workflow for these inputs and explains common patterns without executing or automatically opening suspicious content.
 
 ## Features
 
-- Local analysis of HTTP and HTTPS URL strings
-- Explainable risk score from 0–100
-- Four carefully worded risk-indicator classifications
-- 20 weighted checks, with no pretend machine-learning claims
-- SOC-friendly defanged IOC input support (`hxxps://` and `[.]`)
-- Multi-layer percent-decoding and embedded redirect inspection
-- Executable/double-extension, brand-context, and high-entropy label checks
-- Exact evidence and per-rule score contribution for every finding
-- Stable local report fingerprint plus copy-summary and JSON export actions
-- Expandable findings that explain what was found, why it matters, and what to do
-- Visual breakdown of protocol, hostname, subdomain, domain, port, path, query parameters, and fragment
-- Synthetic examples covering normal, long, IP-based, multi-subdomain, encoded, defanged IOC, redirect, download, and impersonation patterns
-- Latest 10 assessments saved in `localStorage`
-- View, delete, and clear-history controls
-- Responsive interface and accessible labels/focus states
-- No backend, account, database, paid API, or external AI API
-- Static-site deployment support
-- Cloudflare Pages security headers, restrictive permissions, and immutable asset caching
+- Unified Link, QR Code, and Message investigation workspace
+- 0–100 deterministic risk signal score
+- Four assessment bands: Few, Some, Suspicious, and Strong Risk Signals
+- Evidence, severity, explanation, possible pattern/intent, and contextual recommendations
+- Educational demos using fictional/reserved destinations
+- Scam Signal Library at `/learn`
+- Privacy architecture page at `/privacy`
+- Latest 10 checks stored as minimal local metadata
+- View, delete, and clear-all history controls
+- JSON report export
+- Responsive, keyboard-accessible light interface
 
-## Tech stack
+## Link Analysis
+
+The URL engine uses the standard JavaScript `URL` API and explainable checks for HTTP, raw IP hostnames, URL length, subdomains, hostname length, user-information syntax, Punycode, hyphens, unusual ports, encoding, long queries, embedded destinations, shorteners, credential/payment keywords, digit density, misleading path terms, punctuation, executable downloads, double extensions, brand context, query count, and random-looking host labels.
+
+It accepts regular links and common defanged IOC notation such as `hxxps://example[.]com`. Refanging is performed only to parse the text. The destination is never visited.
+
+## QR Analysis
+
+- Drag-and-drop or device upload
+- Browser-side image decoding with `jsQR`
+- URL, text, email, phone, and Wi-Fi content classification
+- Safe decoded-content preview
+- Automatic URL rule analysis when decoded content is a link
+- Combined QR and link report
+- A locally generated educational QR demo
+
+LinkGuard never opens a decoded URL, calls a number, sends an email, or connects to Wi-Fi.
+
+## Message Analysis
+
+Message text is evaluated locally against word-boundary-aware rules for:
+
+- urgency and threat language
+- credential or OTP requests
+- payment pressure
+- rewards and prizes
+- impersonation context
+- risky requests such as APK installation, screen sharing, or remote access
+
+Links are extracted from messages and can be handed to the URL analyzer using **Analyze This Link**. Possible categories include Credential Phishing, Payment Scam, Fake KYC / Verification, Fake Delivery Message, Prize / Reward Scam, Impersonation Attempt, and Tech Support Scam. These are explicitly presented as possible patterns, not verdicts.
+
+## Rule-Based Detection
+
+Detection logic is separate from React presentation:
+
+- `src/analyzer.js` contains URL parsing and URL rules.
+- `src/data/messageRules.js` contains message indicators and weights.
+- `src/features/message-analysis/analyzeMessage.js` performs message evaluation.
+- `src/features/qr-analysis/decodeQr.js` performs local QR decoding and classification.
+- `src/utils/scoring.js` owns shared score calculation and labels.
+
+No random values, machine-learning models, or pretend confidence percentages are used.
+
+## Risk Scoring
+
+Matched rule weights are added and capped at 100:
+
+| Score | Assessment |
+| --- | --- |
+| 0–24 | Few Risk Signals |
+| 25–49 | Some Risk Signals |
+| 50–74 | Suspicious Signals |
+| 75–100 | Strong Risk Signals |
+
+The score describes configured signals in the supplied text or image. A simple-looking malicious URL can receive a low score, and a legitimate complex URL can receive a high score.
+
+## Privacy Architecture
+
+- URL strings are parsed without fetching the destination.
+- QR images are decoded in browser memory and are not intentionally uploaded.
+- Message analysis occurs in browser memory.
+- Full messages are not stored in history.
+- QR image data is not stored in history.
+- History contains only analysis type, timestamp, score, label, and domain/short description.
+- No external fonts, analytics, AI APIs, account system, or application backend are used.
+- Cloudflare Pages headers disable unnecessary connections and browser permissions.
+
+## Tech Stack
 
 - React
 - Vite
 - JavaScript
 - Tailwind CSS
 - Lucide React
-- Browser `URL` and `URLSearchParams` APIs
-- Browser `localStorage`
+- React Router
+- jsQR
+- qrcode (local educational QR generation)
+- Browser URL, Canvas, File, Blob, and localStorage APIs
 
 ## Installation
 
-Requirements: Node.js 18 or newer and npm.
+Node.js 18+ and npm are required.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open the local address shown by Vite. To verify the production build:
+Production verification:
 
 ```bash
 npm run build
 npm run preview
 ```
 
-## Architecture
+## Deployment
+
+The project is optimized for Cloudflare Pages:
+
+- Framework preset: `Vite`
+- Build command: `npm run build`
+- Output directory: `dist`
+- Environment variables: none
+
+Cloudflare Pages treats this SPA as a client-routed application when no top-level `404.html` exists. The included `public/_headers` file adds a restrictive Content Security Policy and security headers.
+
+## Project Structure
 
 ```text
 src/
-├── analyzer.js   Pure URL parsing, rule evaluation, scoring, and examples
-├── App.jsx       React UI, assessment results, history, and interactions
-├── index.css     Tailwind directives and small global visual utilities
-└── main.jsx      React entry point
+├── components/
+│   ├── HistoryDrawer.jsx
+│   ├── InvestigationWorkspace.jsx
+│   ├── Layout.jsx
+│   └── ResultPanel.jsx
+├── data/
+│   └── messageRules.js
+├── features/
+│   ├── link-analysis/analyzeUrl.js
+│   ├── message-analysis/analyzeMessage.js
+│   └── qr-analysis/decodeQr.js
+├── hooks/
+│   └── useAnalysisHistory.js
+├── pages/
+│   ├── HomePage.jsx
+│   ├── LearnPage.jsx
+│   └── PrivacyPage.jsx
+├── utils/
+│   └── scoring.js
+├── analyzer.js
+├── App.jsx
+├── index.css
+└── main.jsx
+docs/
+└── interview-guide.md
 ```
-
-`analyzer.js` contains no React code and performs no network operations. Given an input string, it returns a serializable assessment object. The UI renders that object and optionally stores it in local browser storage. Keeping the analysis engine separate makes the rules easier to review, test, and extend.
-
-## URL parsing explanation
-
-If a user omits a scheme, LinkGuard adds `https://` for parsing. It accepts only HTTP and HTTPS web URLs. The browser's standard `URL` API then separates the input into:
-
-- protocol
-- username/password syntax
-- hostname
-- port
-- pathname
-- search/query string
-- fragment
-
-The hostname is further presented as a domain and subdomain labels for educational inspection. This project uses a small built-in list of common multi-part public suffixes for that display. It is not a complete Public Suffix List implementation.
-
-## Risk-scoring explanation
-
-LinkGuard evaluates 20 deterministic rules. Thresholds and weights are intentionally visible so an interviewer or reviewer can audit every result:
-
-| Indicator | Weight |
-| --- | ---: |
-| Unencrypted HTTP | 14 |
-| Unusually long URL | 8 |
-| Excessive subdomains | 12 |
-| Raw IP address hostname | 18 |
-| Username/password-style syntax | 28 |
-| Punycode hostname | 16 |
-| Unusually long hostname | 8 |
-| Many special characters | 10 |
-| Excessive hyphens | 7 |
-| Percent-encoded characters | 8 |
-| Suspicious keyword combination | 14 |
-| Unusual network port | 13 |
-| Nested URL / redirect pattern | 26 |
-| Very long query string | 8 |
-| Known link-shortener hostname | 16 |
-| Potentially executable file | 28 |
-| Misleading double extension | 32 |
-| Brand name outside official domain | 15 |
-| Random-looking hostname label | 9 |
-| Excessive query parameters | 7 |
-
-Weights are added and capped at 100. The result is classified as:
-
-- 0–24: Low Risk Indicators
-- 25–49: Some Risk Indicators
-- 50–74: Suspicious
-- 75–100: High Risk Indicators
-
-Every result states: **“This score is based on URL characteristics and does not guarantee that a website is safe or malicious.”** A rule match is a reason to inspect a link more carefully—not proof of harmful intent.
 
 ## Limitations
 
-- LinkGuard analyzes URL text only. It does not inspect page content, certificates, downloads, DNS, redirects, hosting infrastructure, or reputation feeds.
-- A low score does not mean a destination is safe. A newly registered or compromised site can have a simple-looking URL.
-- A high score does not mean a destination is malicious. Legitimate services may use IP addresses, encoded values, long queries, non-standard ports, or link shorteners.
-- Domain splitting uses a small local list rather than the full Public Suffix List.
-- The locally maintained shortener list is intentionally small and informational.
-- Internationalized domain names are flagged by their Punycode form but are not automatically considered harmful.
-- Client-side history is device- and browser-specific and can be removed by clearing site data.
+- LinkGuard does not inspect remote page content, redirects, DNS, certificates, files, sender identity, or reputation.
+- Domain splitting uses a small local multi-part suffix list rather than the complete Public Suffix List.
+- Keyword rules can produce false positives and can miss unfamiliar or multilingual phrasing.
+- QR decoding quality depends on image resolution, lighting, crop, and supported encoding.
+- A low score never proves safety; a high score never proves malicious intent.
+- localStorage history is browser- and device-specific.
 
-For higher-confidence decisions, combine URL inspection with trusted reputation services, organizational security controls, and independent verification.
+## Interview Preparation
 
-## Privacy approach
-
-All pasted URL analysis happens in the browser. The analyzer does not fetch, open, preflight, resolve, or navigate to the submitted URL. No pasted URL is transmitted to LinkGuard, a backend, an analytics service, or an AI API. History is limited to the latest 10 assessments and stored only in the browser's `localStorage`.
-
-The application is built without externally hosted fonts, images, analytics, or runtime data dependencies. After deployment, the hosting provider necessarily serves the application files, but the URL being analyzed remains local to the browser.
-
-## Deployment to Cloudflare Pages
-
-1. Push the project to a Git repository.
-2. In Cloudflare Pages, choose **Create a project** and connect the repository.
-3. Use the **Vite** framework preset.
-4. Set the build command to `npm run build`.
-5. Set the build output directory to `dist`.
-6. Use Node.js 18 or newer.
-7. Deploy.
-
-No environment variables, Functions, KV namespaces, databases, or redirects are required. The output is a static site. The included `public/_headers` file adds a restrictive Content Security Policy, disables unnecessary browser permissions, and caches fingerprinted assets.
-
-## What I Learned
-
-### URL anatomy
-
-A URL is more than a domain. Protocol, credentials syntax, hostname labels, port, path, query parameters, and fragment all affect how a browser interprets a link. Separating these parts makes visual deception easier to notice.
-
-### Phishing indicators
-
-No single URL characteristic proves maliciousness. Defensive analysis works best by combining weak signals—such as an IP hostname, many subdomains, urgent keywords, or a nested URL—while explaining legitimate uses and avoiding absolute claims.
-
-### JavaScript URL API
-
-The browser's `URL` API provides safer and more consistent parsing than splitting strings manually. It also normalizes inputs and exposes structured values such as `hostname`, `port`, and `searchParams`.
-
-### Rule-based risk scoring
-
-An explainable rule engine makes each score traceable. Weights express relative concern, and the UI connects every score contribution to an actionable explanation. This is more honest for this problem than presenting an untrained or fake ML model.
-
-### Client-side privacy
-
-Keeping both parsing and persistence in the browser reduces unnecessary data exposure. It also makes the application inexpensive to host and easy to deploy as static files.
-
-## Likely interview questions and short answers
-
-1. **Why does LinkGuard not declare a URL malicious?**  
-   URL structure provides indicators, not proof. Reliable verdicts need more context such as content, reputation, DNS, certificate, and behavioral analysis.
-
-2. **Why use the JavaScript `URL` API?**  
-   It follows browser parsing rules and safely exposes URL components without brittle string splitting.
-
-3. **How is the score calculated?**  
-   Each matched rule contributes a documented weight. The total is capped at 100 and mapped to one of four indicator levels.
-
-4. **Why is HTTP an indicator but not automatically high risk?**  
-   HTTP lacks transport encryption, but that alone does not prove malicious intent. It raises concern particularly when sensitive information is requested.
-
-5. **Why can many subdomains be misleading?**  
-   Users often read from left to right and may trust a brand word in a subdomain even though control is determined by the registered domain farther right.
-
-6. **What is Punycode?**  
-   It is an ASCII representation of internationalized domain labels. It has legitimate uses but can also represent characters that visually resemble others.
-
-7. **What are the privacy benefits of this architecture?**  
-   The entered URL never needs to leave the device, there are no user accounts, and history stays in local browser storage.
-
-8. **What would you add in a production security platform?**  
-   With explicit user consent, I could add reputation sources, full Public Suffix List handling, redirect analysis in an isolated service, certificate details, and automated tests—while clearly separating those signals from this local assessment.
-
-9. **Can attackers evade these rules?**  
-   Yes. A harmful link can look structurally ordinary, and legitimate links can match several rules. That is why the interface states the limitations and encourages independent verification.
-
-10. **Why keep the analyzer separate from the React UI?**  
-    Separation makes the security logic auditable, reusable, serializable, and easier to test without rendering components.
-
-## Responsible-use note
-
-LinkGuard is a defensive educational utility. It does not probe, exploit, crawl, or interact with target websites.
+See [`docs/interview-guide.md`](docs/interview-guide.md) for 15 beginner-friendly questions and answers about phishing, QR risks, URL anatomy, rule-based scoring, privacy, false positives, architecture, and future improvements.
